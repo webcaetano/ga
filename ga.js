@@ -2095,9 +2095,9 @@ GA.create = function(width, height, setup, assetsToLoad, load) {
       //Find the number of files that need to be loaded.
       self.toLoad = sources.length;
       sources.forEach(function(source) {
-
+      	var extension = null;
         //Find the file extension of the asset.
-        var extension = source.split('.').pop();
+        if(typeof source==='string') extension = source.split('.').pop();
 
         //#### Images
         //Load images that have file extensions that match
@@ -2171,14 +2171,15 @@ GA.create = function(width, height, setup, assetsToLoad, load) {
         //#### JSON
         //Load JSON files that have file extensions that match
         //the `jsonExtensions` array.
-        else if (self.jsonExtensions.indexOf(extension) !== -1) {
+        else if ((typeof source==='object' && !!source.json && !!source.image) ||
+        self.jsonExtensions.indexOf(extension) !== -1) {
 
           //Create a new `xhr` object and an object to store the file.
           var xhr = new XMLHttpRequest();
           var file = {};
 
           //Use xhr to load the JSON file.
-          xhr.open("GET", source, true);
+          xhr.open("GET", source.json ? source.json : source, true);
           xhr.addEventListener("readystatechange", function() {
 
             //Check to make sure the file has loaded properly.
@@ -2227,10 +2228,14 @@ GA.create = function(width, height, setup, assetsToLoad, load) {
       var self = this;
 
       //Get the image's file path.
-      var baseUrl = source.replace(/[^\/]*$/, '');
       var image = new Image();
+      if(source.image){
+	      image.src = source.image;
+      } else {
+	      var baseUrl = source.replace(/[^\/]*$/, '');
+	      image.src = baseUrl + json.meta.image;
+      }
       image.addEventListener("load", loadImage, false);
-      image.src = baseUrl + json.meta.image;
 
       function loadImage() {
 
