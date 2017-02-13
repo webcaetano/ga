@@ -2095,7 +2095,7 @@ GA.create = function(width, height, setup, assetsToLoad, load) {
       //Find the number of files that need to be loaded.
       self.toLoad = sources.length;
       sources.forEach(function(source) {
-      	var extension = null;
+        var extension = null;
         //Find the file extension of the asset.
         if(typeof source==='string') extension = source.split('.').pop();
 
@@ -2171,47 +2171,50 @@ GA.create = function(width, height, setup, assetsToLoad, load) {
         //#### JSON
         //Load JSON files that have file extensions that match
         //the `jsonExtensions` array.
-        else if ((typeof source==='object' && !!source.json && !!source.image) ||
+        else if ((typeof source==='object' && (!!source.json || !!source.jsonData) && !!source.image) ||
         self.jsonExtensions.indexOf(extension) !== -1) {
+          if(!source.jsonData && !source.name){
+            //Create a new `xhr` object and an object to store the file.
+            var xhr = new XMLHttpRequest();
+            var file = {};
 
-          //Create a new `xhr` object and an object to store the file.
-          var xhr = new XMLHttpRequest();
-          var file = {};
+            //Use xhr to load the JSON file.
+            xhr.open("GET", source.json ? source.json : source, true);
+            xhr.addEventListener("readystatechange", function() {
 
-          //Use xhr to load the JSON file.
-          xhr.open("GET", source.json ? source.json : source, true);
-          xhr.addEventListener("readystatechange", function() {
+              //Check to make sure the file has loaded properly.
+              if (xhr.status === 200 && xhr.readyState === 4) {
 
-            //Check to make sure the file has loaded properly.
-            if (xhr.status === 200 && xhr.readyState === 4) {
+                //Convert the JSON data file into an ordinary object.
+                file = JSON.parse(xhr.responseText);
 
-              //Convert the JSON data file into an ordinary object.
-              file = JSON.parse(xhr.responseText);
+                //Get the file name.
+                file.name = source;
 
-              //Get the file name.
-              file.name = source;
+                //Assign the file as a property of the assets object so
+                //we can access it like this: `assets["file.json"]`.
+                self[file.name] = file;
 
-              //Assign the file as a property of the assets object so
-              //we can access it like this: `assets["file.json"]`.
-              self[file.name] = file;
+                //Texture Packer support.
+                //If the file has a `frames` property then its in Texture
+                //Packer format.
+                if (file.frames) {
 
-              //Texture Packer support.
-              //If the file has a `frames` property then its in Texture
-              //Packer format.
-              if (file.frames) {
+                  //Create the tileset frames.
+                  self.createTilesetFrames(file, source);
+                } else {
 
-                //Create the tileset frames.
-                self.createTilesetFrames(file, source);
-              } else {
-
-                //Alert the load handler that the file has loaded.
-                self.loadHandler();
+                  //Alert the load handler that the file has loaded.
+                  self.loadHandler();
+                }
               }
-            }
-          });
+            });
 
-          //Send the request to load the file.
-          xhr.send();
+            //Send the request to load the file.
+            xhr.send();
+          } else {
+          	self.createTilesetFrames(source.jsonData, source.name, source.image);
+          }
         }
 
         //Display a message if a file type isn't recognized.
@@ -2224,16 +2227,16 @@ GA.create = function(width, height, setup, assetsToLoad, load) {
     //#### createTilesetFrames
     //`createTilesetFrames` parses the JSON file  texture atlas and loads the frames
     //into this `assets` object.
-    createTilesetFrames: function(json, source) {
+    createTilesetFrames: function(json, source, img) {
       var self = this;
 
       //Get the image's file path.
       var image = new Image();
-      if(source.image){
-	      image.src = source.image;
+      if(source.image || img){
+        image.src = img ? img : source.image;
       } else {
-	      var baseUrl = source.replace(/[^\/]*$/, '');
-	      image.src = baseUrl + json.meta.image;
+        var baseUrl = source.replace(/[^\/]*$/, '');
+        image.src = baseUrl + json.meta.image;
       }
       image.addEventListener("load", loadImage, false);
 
@@ -2242,7 +2245,7 @@ GA.create = function(width, height, setup, assetsToLoad, load) {
         //Assign the image as a property of the `assets` object so
         //we can access it like this:
         //`assets["images/imageName.png"]`.
-        self[baseUrl + json.meta.image] = {
+        self[image.src] = {
           source: image,
           frame: {
             x: 0,
